@@ -25,10 +25,9 @@ stack_top db 0
 	include 'retrotools\spritetools.asm'
 	include 'tiledworld.asm'
 	include 'sprites.asm'
-	include 'worlds.asm'
-	
 
-	MMU 7 n,0x20
+
+	MMU 6,17
 	org 0xE000
 	incbin "fonts/font7.spr"
 

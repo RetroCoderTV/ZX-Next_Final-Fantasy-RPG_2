@@ -15,12 +15,6 @@ dialog_y db 23-DIALOG_HEIGHT
 test_message db "LIKE AND SUBSCRIBE RETROCODER TV",0
 
 
-draw_dialog_box:
-    ret
-
-
-
-
 display_dialog_text:
     ld a,DIALOG_START_X
     ld (dialog_x),a
