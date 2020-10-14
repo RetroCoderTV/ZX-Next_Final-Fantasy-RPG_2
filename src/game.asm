@@ -7,7 +7,6 @@ game_start:
 	nextreg $15,%00000011
 	call init_tiles
 
-
 	; call display_dialog_text
 	
     ret

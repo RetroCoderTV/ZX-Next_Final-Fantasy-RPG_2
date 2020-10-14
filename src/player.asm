@@ -1,6 +1,9 @@
 py dw 450
 px dw 128 
 
+prev_y dw 450
+prev_x dw 128
+
 player_world_x db 0
 player_world_y db 0
 
@@ -54,10 +57,13 @@ player_update:
 	cp TRUE
 	call z, move_down
 
-	
-	call calculate_world_position
-	call check_collision
 
+	ld hl,(px)
+	ld (prev_x),hl
+	ld hl,(py)
+	ld (prev_y),hl
+
+	
     ret
 
 player_draw:
@@ -104,7 +110,7 @@ move_up:
 	push af
 	call c, tiledworld_scroll_up
 	pop af
-	ret c
+	jp c,mu_end
 do_move_up:
 	ld hl,(py)
 	ld a,l
@@ -114,6 +120,9 @@ do_move_up:
 	ld de,-PLAYER_SPEED
 	add hl,de
 	ld (py),hl
+mu_end:
+	call calculate_world_position
+	call check_collision_solid_up
 	ret
 
 	
@@ -126,7 +135,7 @@ move_down:
 	push af
 	call nc, tiledworld_scroll_down
 	pop af
-	ret nc
+	jp nc,md_end
 do_move_down:
 	ld hl,(py)
 	ld a,l
@@ -136,6 +145,9 @@ do_move_down:
 	ld de,PLAYER_SPEED
 	add hl,de
 	ld (py),hl
+md_end:
+	call calculate_world_position
+	call check_collision_solid_down
 	ret
 
 
@@ -153,13 +165,19 @@ do_move_left:
 	ld de,-PLAYER_SPEED
 	add hl,de
 	ld (px),hl
+ml_end:
+	call calculate_world_position
+	call check_collision_solid_left
 	ret
 ml_check_msb:
 	ld a,h
 	cp 0
-	jp z,tiledworld_scroll_left
+	push af
+	call z,tiledworld_scroll_left
+	pop af
+	jp z,ml_end
 	jp nz,do_move_left
-	; ret
+
 
 move_right:
 	ld a,(px)
@@ -167,7 +185,7 @@ move_right:
 	push af
 	call nc,tiledworld_scroll_right
 	pop af
-	ret nc
+	jp nc, mr_end
 try_move_right:
 	ld hl,(px)
 	ld a,l
@@ -177,6 +195,9 @@ do_move_right:
 	ld de,PLAYER_SPEED
 	add hl,de
 	ld (px),hl
+mr_end:
+	call calculate_world_position
+	call check_collision_solid_right
 	ret
 move_right_check_msb:
 	ld a,h
@@ -196,10 +217,16 @@ calculate_world_position:
 	rrca
 	rrca
 	ld b,a
+	ld hl,(px)
+	ld a,h
+	cp 0
+	call nz, addmsb
+	
 	ld hl,(camera_x)
 	ld a,h
 	add a,b
 	ld (player_world_x),a
+
 
 	ld hl,(py)
 	ld a,l
@@ -215,9 +242,13 @@ calculate_world_position:
 
 	ret
 
+addmsb:
+	ld a,32 ;8th of the value of full byte
+	add a,b
+	ld b,a
+	ret
 
-
-check_collision:
+check_collision_solid_up:
 	ld hl,overworld1
 	ld a,(player_world_y)
 	ld d,a
@@ -230,29 +261,228 @@ check_collision:
 	add hl,de
 	ld a,(hl)
 	cp $20
-	jp nz,collided_test
+	jp nz,collided
 
-	; cp $64
-	; jp z,collided_test
-	; cp $63
-	; jp z,collided_test
-	; cp $03
-	; jp z,collided_test
-	; cp $04
-	; jp z,collided_test
-	; cp $24
-	; jp z,collided_test
-	; cp $25
-	; jp z,collided_test
+	ld hl,overworld1
+	ld a,(player_world_y)
+	ld d,a
+	ld e,WORLD_WIDTH
+	mul d,e
+	add hl,de
+	ld a,(player_world_x)
+	add a,2
+	ld e,a
+	ld d,0
+	add hl,de
+	ld a,(hl)
+	cp $20
+	jp nz,collided
+
+	ret
+
+check_collision_solid_down:
+	ld hl,overworld1
+	ld a,(player_world_y)
+	add a,2
+	ld d,a
+	ld e,WORLD_WIDTH
+	mul d,e
+	add hl,de
+	ld a,(player_world_x)
+	ld e,a
+	ld d,0
+	add hl,de
+	ld a,(hl)
+	cp $20
+	jp nz,collided
+
+	ld hl,overworld1
+	ld a,(player_world_y)
+	add a,2
+	ld d,a
+	ld e,WORLD_WIDTH
+	mul d,e
+	add hl,de
+	ld a,(player_world_x)
+	add a,2
+	ld e,a
+	ld d,0
+	add hl,de
+	ld a,(hl)
+	cp $20
+	jp nz,collided
 
 	ret
 
 
-collided_test:
-	;for now we will just flip the sprite on Y when colliding
+check_collision_solid_left:
+	ld hl,overworld1
+	ld a,(player_world_y)
+	ld d,a
+	ld e,WORLD_WIDTH
+	mul d,e
+	add hl,de
+	ld a,(player_world_x)
+	ld e,a
+	ld d,0
+	add hl,de
+	ld a,(hl)
+	cp $20
+	jp nz,collided
+
+	ld hl,overworld1
+	ld a,(player_world_y)
+	add a,2
+	ld d,a
+	ld e,WORLD_WIDTH
+	mul d,e
+	add hl,de
+	ld a,(player_world_x)
+	ld e,a
+	ld d,0
+	add hl,de
+	ld a,(hl)
+	cp $20
+	jp nz,collided
+
+	ret
+
+check_collision_solid_right:
+	ld hl,overworld1
+	ld a,(player_world_y)
+	ld d,a
+	ld e,WORLD_WIDTH
+	mul d,e
+	add hl,de
+	ld a,(player_world_x)
+	add a,2
+	ld e,a
+	ld d,0
+	add hl,de
+	ld a,(hl)
+	cp $20
+	jp nz,collided
+
+	ld hl,overworld1
+	ld a,(player_world_y)
+	add a,2
+	ld d,a
+	ld e,WORLD_WIDTH
+	mul d,e
+	add hl,de
+	ld a,(player_world_x)
+	add a,2
+	ld e,a
+	ld d,0
+	add hl,de
+	ld a,(hl)
+	cp $20
+	jp nz,collided
+
+	ret
+
+
+collided:
+	ld a,(hl)
+	cp $2
+	jp z,collided_solid
+	cp $3
+	jp z,collided_solid
+	cp $4
+	jp z,collided_solid
+	cp $5
+	jp z,collided_solid
+	cp $6
+	jp z,collided_solid
+	cp $7
+	jp z,collided_solid
+	cp $8
+	jp z,collided_solid
+	cp $9
+	jp z,collided_solid
+	cp $23
+	jp z,collided_solid
+	cp $24
+	jp z,collided_solid
+	cp $25
+	jp z,collided_solid
+	cp $26
+	jp z,collided_solid
+	cp $1f
+	jp z,collided_solid
+	cp $1e
+	jp z,collided_solid
+	cp $1d
+	jp z,collided_solid
+	cp $1c
+	jp z,collided_solid
+	cp $1b
+	jp z,collided_solid
+	cp $1a
+	jp z,collided_solid
+	cp $2f
+	jp z,collided_solid
+	cp $2e
+	jp z,collided_solid
+	cp $2d
+	jp z,collided_solid
+	cp $2c
+	jp z,collided_solid
+	cp $2b
+	jp z,collided_solid
+	cp $2a
+	jp z,collided_solid
+	cp $3f
+	jp z,collided_solid
+	cp $3e
+	jp z,collided_solid
+	cp $3d
+	jp z,collided_solid
+	cp $3c
+	jp z,collided_solid
+	cp $3b
+	jp z,collided_solid
+	cp $3a
+	jp z,collided_solid
+	cp $5f
+	jp z,collided_solid
+	cp $5e
+	jp z,collided_solid
+	cp $5d
+	jp z,collided_solid
+	cp $5c
+	jp z,collided_solid
+	cp $5b
+	jp z,collided_solid
+	cp $5a
+	jp z,collided_solid
+	cp $7f
+	jp z,collided_solid
+	cp $7e
+	jp z,collided_solid
+	cp $7d
+	jp z,collided_solid
+	cp $7c
+	jp z,collided_solid
+	cp $7b
+	jp z,collided_solid
+	cp $7a
+	jp z,collided_solid
+
+	call collided_trigger
+	ret
+
+
+collided_solid:
+	ld hl,(prev_x)
+	ld (px),hl
+	ld hl,(prev_y)
+	ld (py),hl
+	ret
+
+collided_trigger:
 	call mirror_character_sprite_y
 	ret
-
 
 
 
